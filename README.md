@@ -76,7 +76,7 @@ Booking creation and its audit event run in a transactional D1 batch. A booking 
 | PATCH | `/api/bookings` | Cancel a permitted future booking |
 | POST | `/api/demo` | Explicitly initialize fictional sample mentors and slots |
 
-Every mutation requires identity. Anonymous discovery exposes public mentor fields and slot availability, never learner names or booking topics. A mentor can see sessions booked with them; a learner can see their own bookings.
+Every user mutation requires identity. The sample-data endpoint additionally supports a temporary deployment-only `SLOTWISE_SEED_KEY` bearer secret for initializing public demo fixtures; this grants no booking or profile access and is removed after initialization. Anonymous discovery exposes public mentor fields and slot availability, never learner names or booking topics. A mentor can see sessions booked with them; a learner can see their own bookings.
 
 ## Deployment
 

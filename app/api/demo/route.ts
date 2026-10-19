@@ -1,7 +1,12 @@
+import { env } from "cloudflare:workers";
 import { api, database, identity, json } from "../../../lib/server";
 export async function POST(r: Request) {
     return api(async () => {
-        await identity(r);
+        // Optional deployment-only secret permits initial fixtures before the first visitor signs in.
+        // This grants sample-data insertion only, never user identity or booking access.
+        const seedKey = (env as unknown as Record<string, string | undefined>).SLOTWISE_SEED_KEY;
+        const bootstrap = seedKey && r.headers.get("authorization") === `Bearer ${seedKey}`;
+        if (!bootstrap) await identity(r);
         const db = database(), now = Date.now();
         const people = [['demo-asha', 'Asha Mehta', 'Software engineer · Backend systems', 'Software engineering', 'Build confidence in backend development, API design, and technical interviews. Bring a problem you are working through.', 'mint'], ['demo-arjun', 'Arjun Rao', 'Product designer · Design systems', 'Design', 'Work through portfolio reviews, product thinking, and designing interfaces that make complex tasks feel simple.', 'peach'], ['demo-neha', 'Neha Shah', 'Data engineer · Analytics & AI', 'Data & AI', 'Explore data pipelines, practical machine learning, and navigating your first role in data engineering.', 'lilac']];
         const statements = [];
