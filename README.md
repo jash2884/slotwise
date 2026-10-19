@@ -1,5 +1,7 @@
 # Slotwise
 
+[Live demo](https://slotwise-jash.artfulswan33.chatgpt.site) · [CI checks](https://github.com/jash2884/slotwise/actions/workflows/ci.yml)
+
 A full-stack mentor scheduling application built with React, TypeScript, Vinext, Cloudflare Workers, and D1 (SQLite). Pick a mentor, book a 30-minute session, manage appointments, or publish your own availability.
 
 ## Implemented
