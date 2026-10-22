@@ -9,7 +9,9 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Thes
 const run=randomUUID().slice(0,8),host=`host-${run}`,learner=`learner-${run}`,stranger=`stranger-${run}`;
 let checks=0;
 function check(value,message){assert.ok(value,message);checks++;console.log(`PASS ${message}`)}
-async function call(path,{user,method='GET',body,headers={}}={}){const r=await fetch(base+path,{method,headers:{...(user?{Cookie:sessionCookie(user)}:{}),...(body === undefined ? {} : {'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json();return {status:r.status,data};}
+// Wrangler can answer with a plain-text restart notice while the local Worker reloads; such
+// requests never reach the app, so retrying them is safe.
+async function call(path,{user,method='GET',body,headers={}}={},attempt=0){const r=await fetch(base+path,{method,headers:{...(user?{Cookie:sessionCookie(user)}:{}),...(body === undefined ? {} : {'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text();let data;try{data=JSON.parse(text)}catch{if(attempt<20){await new Promise(res=>setTimeout(res,500));return call(path,{user,method,body,headers},attempt+1)}throw Error(`${method} ${path}: HTTP ${r.status} non-JSON: ${text.slice(0,120)}`)}return {status:r.status,data};}
 const profile={name:'Test Mentor',title:'Backend engineer',specialty:'Software engineering',bio:'Integration-test mentor profile for booking validation.'};
 check((await call('/api/profile',{method:'POST',body:profile})).status===401,'Anonymous profile creation rejected');
 check((await call('/api/bookings',{method:'POST',body:{slotId:'x',topic:'Test topic'}})).status===401,'Anonymous booking rejected');
