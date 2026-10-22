@@ -1,10 +1,10 @@
 import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "../app/chatgpt-auth";
+import { getUser } from "../app/auth";
 export class HttpError extends Error {
     constructor(public status: number, message: string) { super(message); }
 }
 export async function identity(request?: Request) {
-    const user = await getChatGPTUser();
+    const user = await getUser();
     if (!user)
         throw new HttpError(401, "Please sign in to continue.");
     if (request) {
