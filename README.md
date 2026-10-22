@@ -1,6 +1,6 @@
 # Slotwise
 
-[Live demo](https://slotwise-jash.artfulswan33.chatgpt.site) · [CI checks](https://github.com/jash2884/slotwise/actions/workflows/ci.yml)
+[Live demo](https://slotwise.jashparmar.com) · [CI checks](https://github.com/jash2884/slotwise/actions/workflows/ci.yml)
 
 A full-stack mentor scheduling application built with React, TypeScript, Vinext, Cloudflare Workers, and D1 (SQLite). Pick a mentor, book a 30-minute session, manage appointments, or publish your own availability.
 
@@ -8,7 +8,7 @@ A full-stack mentor scheduling application built with React, TypeScript, Vinext,
 
 - Search and filter mentors by specialty.
 - Authenticated booking, profile management, and availability creation.
-- Platform-backed sign-in with server-side authorization on every write.
+- One-click guest sign-in (HMAC-signed, HttpOnly session cookie) with server-side authorization on every write.
 - UTC timestamps rendered in the visitor's selected IANA timezone.
 - Database-enforced protection against double-booking a slot or a learner's time.
 - Idempotency keys: retries, including simultaneous retries, return the original booking.
@@ -32,7 +32,7 @@ npm start -- --port 5173
 
 Open the printed local URL. `npm run dev` is available for source development after local database setup.
 
-Local preview does not emulate Sites sign-in. Public mentor discovery renders without identity. To exercise authenticated operations locally, the integration tests send development-only identity headers to localhost. **Do not expose the raw Wrangler preview to the internet**: production authentication depends on the Sites gateway supplying trusted identity. The hosted application uses `/signin-with-chatgpt` and never asks users to construct identity headers.
+Local preview: start the built Worker with `wrangler dev --config dist/server/wrangler.json --var SESSION_SECRET:<at least 32 characters>`, then open `/auth/guest` to sign in as a guest. Without the secret, sign-in is disabled (fail closed).
 
 ## Tests
 
@@ -50,7 +50,7 @@ Coverage includes unauthenticated requests, foreign-origin writes, validation, o
 
 ```mermaid
 flowchart LR
-  U[Browser: React + TypeScript] --> G[Sites authentication gateway]
+  U[Browser: React + TypeScript] --> G[Signed session cookie]
   G --> W[Cloudflare Worker: Vinext route handlers]
   W --> V[Zod validation + ownership checks]
   V --> D[(D1 / SQLite)]
@@ -82,7 +82,15 @@ Every user mutation requires identity. The sample-data endpoint additionally sup
 
 ## Deployment
 
-The provided source is configured for Sites with the logical D1 binding `DB`. Sites provisions D1, applies the committed migrations, supplies authenticated identity, and deploys the built Worker. The `.openai/hosting.json` project identity belongs to this deployment. Remove its `project_id` before registering an independent fork; never reuse another owner's deployment identity.
+Deployed as a self-owned Cloudflare Worker with a D1 database and a custom domain. Build, then deploy with `scripts/deploy-cloudflare.mjs`:
+
+```sh
+npm run build
+CF_WORKER_NAME=slotwise CF_D1_NAME=slotwise-db CF_D1_ID=<d1-database-id> CF_DOMAIN=slotwise.jashparmar.com node scripts/deploy-cloudflare.mjs
+openssl rand -hex 32 | npx wrangler secret put SESSION_SECRET --name slotwise
+```
+
+Apply the SQL files in `drizzle/` to the D1 database (`wrangler d1 execute <db> --remote --file ...`) before first use. Sign-in is a one-click guest session: `/auth/guest` issues an HMAC-SHA256-signed, HttpOnly cookie keyed by `SESSION_SECRET`, and request headers are never trusted for identity.
 
 The production code does not use a standalone Node/Express server or PostgreSQL. Vinext exposes Next-style route handlers on a Worker. Choosing D1 keeps the deployed runtime and database integrated without external credentials.
 
