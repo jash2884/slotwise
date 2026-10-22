@@ -14,7 +14,7 @@ export type AppUser = {
 export const SESSION_COOKIE = "sw_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14;
 
-type SessionPayload = { uid: string; name: string; exp: number };
+type SessionPayload = { uid: string; name: string; exp: number; email?: string };
 
 const encoder = new TextEncoder();
 
@@ -79,7 +79,7 @@ export async function getUser(): Promise<AppUser | null> {
   return {
     userId: session.uid,
     displayName: session.name,
-    email: `${session.uid}@guest.local`,
+    email: typeof session.email === "string" && session.email.includes("@") ? session.email : `${session.uid}@guest.local`,
     fullName: session.name,
   };
 }

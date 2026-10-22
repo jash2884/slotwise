@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { readdir } from 'node:fs/promises';
 
 const state = `.wrangler/test-${randomUUID()}`;
+const sessionSecret = randomUUID().replace(/-/g, '') + randomUUID().replace(/-/g, '');
 const wrangler = ['--import', './scripts/sites-env.mjs', './node_modules/wrangler/bin/wrangler.js'];
 const run = (args, env = process.env) => new Promise((resolve, reject) => {
   const child = spawn(process.execPath, args, { stdio: 'inherit', env });
@@ -17,7 +18,8 @@ for (const sql of (await readdir('drizzle')).filter(file => file.endsWith('.sql'
 
 const server = spawn(process.execPath, [...wrangler, 'dev', '--config',
   'dist/server/wrangler.json', '--local', '--persist-to', state,
-  '--ip', '127.0.0.1', '--inspector-port', '0', '--port', '5174'],
+  '--ip', '127.0.0.1', '--inspector-port', '0', '--port', '5174',
+  '--var', `SESSION_SECRET:${sessionSecret}`],
   { stdio: ['ignore', 'pipe', 'pipe'] });
 let logs = '';
 let lastRuntimeChange = Date.now();
@@ -66,7 +68,7 @@ try {
   }
   if (!ready) throw Error('Test server did not stabilize. Ensure port 5174 is free.');
   await run(['tests/api.integration.mjs'], {
-    ...process.env, SLOTWISE_TEST_URL: 'http://127.0.0.1:5174',
+    ...process.env, TEST_SESSION_SECRET: sessionSecret, SLOTWISE_TEST_URL: 'http://127.0.0.1:5174',
   });
 } catch (error) {
   console.error('Local Worker output:\n' + logs);

@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { createHmac } from 'node:crypto';
+const sessionSecret=process.env.TEST_SESSION_SECRET;if(!sessionSecret)throw Error('TEST_SESSION_SECRET is required (set by tests/run-local.mjs).');
+const b64=(v)=>Buffer.from(v).toString('base64url');
+function sessionCookie(user){const body=b64(JSON.stringify({uid:user,name:user,email:user+'@example.test',exp:Math.floor(Date.now()/1000)+3600}));return 'sw_session='+body+'.'+createHmac('sha256',sessionSecret).update(body).digest('base64url');}
 const base=process.env.SLOTWISE_TEST_URL??'http://127.0.0.1:5173';
-if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('These tests use development-only trusted identity headers. Run against localhost only.');
+if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('These tests sign session cookies with a test-only secret. Run against localhost only.');
 const run=randomUUID().slice(0,8),host=`host-${run}`,learner=`learner-${run}`,stranger=`stranger-${run}`;
 let checks=0;
 function check(value,message){assert.ok(value,message);checks++;console.log(`PASS ${message}`)}
-async function call(path,{user,method='GET',body,headers={}}={}){const r=await fetch(base+path,{method,headers:{...(user?{'oai-authenticated-user-id':user,'oai-authenticated-user-email':`${user}@example.test`}:{}),...(body === undefined ? {} : {'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json();return {status:r.status,data};}
+async function call(path,{user,method='GET',body,headers={}}={}){const r=await fetch(base+path,{method,headers:{...(user?{Cookie:sessionCookie(user)}:{}),...(body === undefined ? {} : {'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json();return {status:r.status,data};}
 const profile={name:'Test Mentor',title:'Backend engineer',specialty:'Software engineering',bio:'Integration-test mentor profile for booking validation.'};
 check((await call('/api/profile',{method:'POST',body:profile})).status===401,'Anonymous profile creation rejected');
 check((await call('/api/bookings',{method:'POST',body:{slotId:'x',topic:'Test topic'}})).status===401,'Anonymous booking rejected');
